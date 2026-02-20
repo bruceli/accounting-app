@@ -1,26 +1,594 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js App"/>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <h1>记账本</h1>
+      <div class="date-display">{{ currentDate }}</div>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <div class="card balance">
+        <span class="label">余额</span>
+        <span class="amount">¥{{ formatMoney(balance) }}</span>
+      </div>
+      <div class="card income">
+        <span class="label">收入</span>
+        <span class="amount">+¥{{ formatMoney(totalIncome) }}</span>
+      </div>
+      <div class="card expense">
+        <span class="label">支出</span>
+        <span class="amount">-¥{{ formatMoney(totalExpense) }}</span>
+      </div>
+    </div>
+
+    <!-- Quick Add -->
+    <div class="quick-add">
+      <button class="btn-income" @click="showAddModal('income')">+ 收入</button>
+      <button class="btn-expense" @click="showAddModal('expense')">+ 支出</button>
+    </div>
+
+    <!-- Transaction List -->
+    <div class="transaction-section">
+      <h2>交易记录</h2>
+      <div class="transaction-list" v-if="transactions.length">
+        <div 
+          v-for="tx in transactions" 
+          :key="tx.id" 
+          class="transaction-item"
+          :class="tx.type"
+        >
+          <div class="tx-icon">{{ tx.categoryIcon }}</div>
+          <div class="tx-details">
+            <div class="tx-category">{{ tx.category }}</div>
+            <div class="tx-note">{{ tx.note || '无备注' }}</div>
+            <div class="tx-date">{{ formatDate(tx.date) }}</div>
+          </div>
+          <div class="tx-amount" :class="tx.type">
+            {{ tx.type === 'income' ? '+' : '-' }}¥{{ formatMoney(tx.amount) }}
+          </div>
+          <button class="delete-btn" @click="deleteTx(tx.id)">×</button>
+        </div>
+      </div>
+      <div v-else class="empty-state">
+        暂无记录，点击上方按钮添加第一笔交易
+      </div>
+    </div>
+
+    <!-- Add Modal -->
+    <div class="modal" v-if="showModal" @click.self="closeModal">
+      <div class="modal-content">
+        <h3>{{ modalType === 'income' ? '添加收入' : '添加支出' }}</h3>
+        
+        <div class="form-group">
+          <label>金额</label>
+          <input 
+            type="number" 
+            v-model.number="newTx.amount" 
+            placeholder="0.00"
+            step="0.01"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>分类</label>
+          <div class="category-grid">
+            <button 
+              v-for="cat in getCategories(modalType)" 
+              :key="cat.name"
+              class="category-btn"
+              :class="{ active: newTx.category === cat.name }"
+              @click="newTx.category = cat.name"
+            >
+              <span class="cat-icon">{{ cat.icon }}</span>
+              <span>{{ cat.name }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>备注</label>
+          <input 
+            type="text" 
+            v-model="newTx.note" 
+            placeholder="可选备注"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>日期</label>
+          <input 
+            type="date" 
+            v-model="newTx.date" 
+          />
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="closeModal">取消</button>
+          <button 
+            class="btn-confirm" 
+            :class="modalType"
+            @click="addTransaction"
+          >
+            确定
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
-
 export default {
   name: 'App',
-  components: {
-    HelloWorld
+  data() {
+    return {
+      transactions: [],
+      showModal: false,
+      modalType: 'expense',
+      newTx: {
+        amount: '',
+        category: '',
+        note: '',
+        date: new Date().toISOString().split('T')[0]
+      }
+    }
+  },
+  computed: {
+    currentDate() {
+      const now = new Date();
+      return now.toLocaleDateString('zh-CN', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        weekday: 'long'
+      });
+    },
+    totalIncome() {
+      return this.transactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+    },
+    totalExpense() {
+      return this.transactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+    },
+    balance() {
+      return this.totalIncome - this.totalExpense;
+    }
+  },
+  methods: {
+    getCategories(type) {
+      const categories = {
+        income: [
+          { name: '工资', icon: '💰' },
+          { name: '奖金', icon: '🎁' },
+          { name: '投资', icon: '📈' },
+          { name: '兼职', icon: '💼' },
+          { name: '其他收入', icon: '💵' }
+        ],
+        expense: [
+          { name: '餐饮', icon: '🍔' },
+          { name: '交通', icon: '🚗' },
+          { name: '购物', icon: '🛒' },
+          { name: '居住', icon: '🏠' },
+          { name: '娱乐', icon: '🎮' },
+          { name: '医疗', icon: '💊' },
+          { name: '教育', icon: '📚' },
+          { name: '其他', icon: '📦' }
+        ]
+      };
+      return categories[type];
+    },
+    showAddModal(type) {
+      this.modalType = type;
+      const cats = this.getCategories(type);
+      this.newTx = {
+        amount: '',
+        category: cats[0].name,
+        note: '',
+        date: new Date().toISOString().split('T')[0]
+      };
+      this.showModal = true;
+    },
+    closeModal() {
+      this.showModal = false;
+    },
+    addTransaction() {
+      if (!this.newTx.amount || this.newTx.amount <= 0) {
+        alert('请输入有效金额');
+        return;
+      }
+      if (!this.newTx.category) {
+        alert('请选择分类');
+        return;
+      }
+
+      const cats = this.getCategories(this.modalType);
+      const cat = cats.find(c => c.name === this.newTx.category);
+
+      const tx = {
+        id: Date.now(),
+        type: this.modalType,
+        amount: this.newTx.amount,
+        category: this.newTx.category,
+        categoryIcon: cat ? cat.icon : '💰',
+        note: this.newTx.note,
+        date: this.newTx.date
+      };
+
+      this.transactions.unshift(tx);
+      this.saveToStorage();
+      this.closeModal();
+    },
+    deleteTx(id) {
+      if (confirm('确定删除这条记录？')) {
+        this.transactions = this.transactions.filter(t => t.id !== id);
+        this.saveToStorage();
+      }
+    },
+    formatMoney(amount) {
+      return Number(amount).toFixed(2);
+    },
+    formatDate(dateStr) {
+      const date = new Date(dateStr);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (dateStr === today.toISOString().split('T')[0]) {
+        return '今天';
+      } else if (dateStr === yesterday.toISOString().split('T')[0]) {
+        return '昨天';
+      }
+      return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+    },
+    saveToStorage() {
+      localStorage.setItem('accounting-transactions', JSON.stringify(this.transactions));
+    },
+    loadFromStorage() {
+      const saved = localStorage.getItem('accounting-transactions');
+      if (saved) {
+        this.transactions = JSON.parse(saved);
+      }
+    }
+  },
+  mounted() {
+    this.loadFromStorage();
   }
 }
 </script>
 
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px;
+  padding-bottom: 100px;
+}
+
+.header {
   text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+  margin-bottom: 20px;
+}
+
+.header h1 {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.date-display {
+  font-size: 14px;
+  color: #999;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.card.balance {
+  grid-column: span 3;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.card.balance .label,
+.card.balance .amount {
+  color: white;
+}
+
+.card.income .amount {
+  color: #52c41a;
+}
+
+.card.expense .amount {
+  color: #ff4d4f;
+}
+
+.card .label {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.card .amount {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.quick-add {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.quick-add button {
+  border: none;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.quick-add button:active {
+  transform: scale(0.98);
+}
+
+.btn-income {
+  background: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f !important;
+}
+
+.btn-expense {
+  background: #fff1f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7 !important;
+}
+
+.transaction-section h2 {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.transaction-list {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.transaction-item:last-child {
+  border-bottom: none;
+}
+
+.tx-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.tx-details {
+  flex: 1;
+}
+
+.tx-category {
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+}
+
+.tx-note {
+  font-size: 13px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.tx-date {
+  font-size: 12px;
+  color: #bbb;
+  margin-top: 2px;
+}
+
+.tx-amount {
+  font-size: 16px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.tx-amount.income {
+  color: #52c41a;
+}
+
+.tx-amount.expense {
+  color: #ff4d4f;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #ccc;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.delete-btn:hover {
+  color: #ff4d4f;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  background: white;
+  border-radius: 12px;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.modal-content h3 {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  border-color: #667eea;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.category-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.category-btn.active {
+  border-color: #667eea;
+  background: #f0f0ff;
+}
+
+.cat-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.category-btn span:last-child {
+  font-size: 12px;
+  color: #666;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-cancel,
+.btn-confirm {
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.btn-confirm {
+  color: white;
+}
+
+.btn-confirm.income {
+  background: #52c41a;
+}
+
+.btn-confirm.expense {
+  background: #ff4d4f;
 }
 </style>
