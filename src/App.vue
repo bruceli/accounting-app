@@ -1,8 +1,11 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="theme">
     <!-- Header -->
     <header class="header">
       <h1>记账本</h1>
+      <button class="theme-toggle" @click="toggleTheme">
+        {{ theme === 'dark' ? '☀️' : '🌙' }}
+      </button>
       <div class="date-display">{{ currentDate }}</div>
     </header>
 
@@ -126,6 +129,7 @@ export default {
       transactions: [],
       showModal: false,
       modalType: 'expense',
+      theme: 'light',
       newTx: {
         amount: '',
         category: '',
@@ -252,10 +256,21 @@ export default {
       if (saved) {
         this.transactions = JSON.parse(saved);
       }
+    },
+    toggleTheme() {
+      this.theme = this.theme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('accounting-theme', this.theme);
+    },
+    loadTheme() {
+      const saved = localStorage.getItem('accounting-theme');
+      if (saved) {
+        this.theme = saved;
+      }
     }
   },
   mounted() {
     this.loadFromStorage();
+    this.loadTheme();
   }
 }
 </script>
@@ -267,10 +282,35 @@ export default {
   box-sizing: border-box;
 }
 
+:root {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: white;
+  --text-primary: #333;
+  --text-secondary: #999;
+  --text-muted: #bbb;
+  --border-color: #f0f0f0;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --input-bg: white;
+  --input-border: #ddd;
+}
+
+.dark {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #888;
+  --text-muted: #666;
+  --border-color: #3a3a3a;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  --input-bg: #333;
+  --input-border: #444;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: #f5f5f5;
+  background: var(--bg-primary);
   min-height: 100vh;
+  transition: background 0.3s;
 }
 
 .app-container {
@@ -283,17 +323,31 @@ body {
 .header {
   text-align: center;
   margin-bottom: 20px;
+  position: relative;
 }
 
 .header h1 {
   font-size: 24px;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 8px;
+}
+
+.theme-toggle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
 .date-display {
   font-size: 14px;
-  color: #999;
+  color: var(--text-secondary);
 }
 
 .summary-cards {
@@ -304,11 +358,12 @@ body {
 }
 
 .card {
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 16px 12px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: var(--card-shadow);
+  transition: background 0.3s;
 }
 
 .card.balance {
@@ -332,7 +387,7 @@ body {
 .card .label {
   display: block;
   font-size: 12px;
-  color: #999;
+  color: var(--text-secondary);
   margin-bottom: 4px;
 }
 
@@ -376,22 +431,24 @@ body {
 
 .transaction-section h2 {
   font-size: 18px;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
 .transaction-list {
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: var(--card-shadow);
+  transition: background 0.3s;
 }
 
 .transaction-item {
   display: flex;
   align-items: center;
   padding: 14px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.3s, border-color 0.3s;
 }
 
 .transaction-item:last-child {
@@ -409,19 +466,19 @@ body {
 
 .tx-category {
   font-size: 15px;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .tx-note {
   font-size: 13px;
-  color: #999;
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 
 .tx-date {
   font-size: 12px;
-  color: #bbb;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -443,7 +500,7 @@ body {
   background: none;
   border: none;
   font-size: 20px;
-  color: #ccc;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px 8px;
 }
@@ -455,9 +512,10 @@ body {
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: #999;
-  background: white;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
   border-radius: 12px;
+  transition: background 0.3s, color 0.3s;
 }
 
 /* Modal */
@@ -475,7 +533,7 @@ body {
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 20px 20px 0 0;
   padding: 24px;
   width: 100%;
@@ -483,6 +541,7 @@ body {
   max-height: 85vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease;
+  transition: background 0.3s;
 }
 
 @keyframes slideUp {
@@ -507,18 +566,20 @@ body {
 .form-group label {
   display: block;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
 .form-group input {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   font-size: 16px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.3s;
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .form-group input:focus {
@@ -536,9 +597,9 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 10px 4px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: white;
+  background: var(--bg-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -555,7 +616,7 @@ body {
 
 .category-btn span:last-child {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .modal-actions {
@@ -576,8 +637,8 @@ body {
 }
 
 .btn-cancel {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
 }
 
 .btn-confirm {
